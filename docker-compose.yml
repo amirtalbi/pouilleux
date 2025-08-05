@@ -6,7 +6,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=3001
       - ADMIN_PASSWORD=pouilleux-admin
     networks:

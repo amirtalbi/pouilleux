@@ -10,7 +10,7 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
-      ? ["https://164.90.223.131", "http://164.90.223.131"]
+      ? ["https://167.99.140.5", "http://167.99.140.5"]
       : "http://127.0.0.1:5173",
     methods: ["GET", "POST"],
     credentials: true,
@@ -21,7 +21,7 @@ const io = socketIo(server, {
 app.use(
   cors({
     origin: process.env.NODE_ENV === 'production' 
-      ? ["https://164.90.223.131", "http://164.90.223.131"]
+      ? ["https://167.99.140.5", "http://167.99.140.5"]
       : "http://127.0.0.1:5173",
     credentials: true,
   })
