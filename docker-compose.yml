@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ghcr.io/amirtalbi/pouilleux-backend:latest
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - ADMIN_PASSWORD=pouilleux-admin
+    networks:
+      - pouilleux-network
+
+  frontend:
+    image: ghcr.io/amirtalbi/pouilleux-front:latest
+    ports:
+      - "5174:80"
+    depends_on:
+      - backend
+    networks:
+      - pouilleux-network
+
+networks:
+  pouilleux-network:
+    driver: bridge
