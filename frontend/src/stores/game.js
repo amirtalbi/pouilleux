@@ -48,10 +48,11 @@ export const useGameStore = defineStore('pouilleux', () => {
 
     // Utiliser une URL relative en développement et production
     const socketUrl = process.env.NODE_ENV === 'production' 
-      ? '/api' 
+      ? '/' 
       : 'http://127.0.0.1:3001'
 
     socket.value = io(socketUrl, {
+      path: process.env.NODE_ENV === 'production' ? '/socket.io/' : '/socket.io/',
       transports: ['websocket', 'polling'],
       timeout: 10000,
       forceNew: true
