@@ -793,17 +793,12 @@ io.on("connection", (socket) => {
 
       const player = room.players.find(p => p.id === playerData.playerId);
       if (!player || !player.isAdmin) {
-        socket.emit("error", { message: "Seul l'admin peut relancer une partie" });
+        socket.emit("error", { message: "Seul l'admin peut redémarrer la partie" });
         return;
       }
 
-      if (room.gameState !== "finished") {
-        socket.emit("error", { message: "La partie n'est pas terminée" });
-        return;
-      }
-
-      const gameState = room.resetGame();
-      io.to(playerData.roomCode).emit("game-reset");
+      const gameState = room.restartGame();
+      io.to(playerData.roomCode).emit("game-restarted");
       io.to(playerData.roomCode).emit("game-state", gameState);
 
     } catch (error) {

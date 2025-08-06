@@ -464,6 +464,14 @@ onMounted(() => {
     router.push('/lobby')
   }
 })
+
+// Watch for game state changes to redirect to lobby when game restarts
+watch(() => gameStore.gameState, (newState, oldState) => {
+  if (oldState === 'finished' && newState === 'lobby') {
+    // Le jeu a été redémarré, rediriger vers le lobby
+    router.push('/lobby')
+  }
+})
 </script>
 
 <style scoped>
