@@ -103,7 +103,11 @@ const createRoom = async () => {
 
   isCreating.value = true
   try {
-    const response = await fetch('/api/create-room', {
+    const apiUrl = process.env.NODE_ENV === 'production' 
+      ? '/api/create-room' 
+      : 'http://127.0.0.1:3001/create-room'
+      
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -131,7 +135,11 @@ const joinRoom = async () => {
 
   try {
     // Vérifier que la salle existe
-    const response = await fetch(`/api/room/${joinRoomCode.value.toUpperCase()}`)
+    const apiUrl = process.env.NODE_ENV === 'production' 
+      ? `/api/room/${joinRoomCode.value.toUpperCase()}` 
+      : `http://127.0.0.1:3001/room/${joinRoomCode.value.toUpperCase()}`
+      
+    const response = await fetch(apiUrl)
     
     if (!response.ok) {
       const error = await response.json()
