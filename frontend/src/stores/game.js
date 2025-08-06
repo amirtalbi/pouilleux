@@ -109,11 +109,19 @@ export const useGameStore = defineStore('pouilleux', () => {
 
     socket.value.on('game-restarted', () => {
       console.log('Partie redémarrée!')
-      // Réinitialiser les cartes locales
+      // Réinitialiser les cartes locales mais garder la connexion
       myCards.value = []
       myPairs.value = []
       lastAction.value = null
+      winner.value = null
       gameState.value = 'lobby'
+      
+      // Mettre à jour le statut des joueurs
+      players.value.forEach(player => {
+        player.isReady = false
+        player.hasWon = false
+        player.hasLost = false
+      })
     })
 
     socket.value.on('target-cards', (data) => {
@@ -166,11 +174,32 @@ export const useGameStore = defineStore('pouilleux', () => {
   }
 
   const joinRoom = (code, name) => {
-    if (!socket.value || !socket.value.connected) {
-      setError('Connexion non établie')
+    // Vérifier si on est déjà dans la salle
+    if (isInRoom.value) {
+      console.log('Déjà dans la salle')
       return
     }
 
+    if (!socket.value || !socket.value.connected) {
+      console.log('Connexion non établie, tentative de reconnexion...')
+      initSocket()
+      
+      // Attendre un peu et réessayer
+      setTimeout(() => {
+        if (socket.value && socket.value.connected) {
+          console.log('Reconnexion réussie, rejoindre la salle...')
+          socket.value.emit('join-room', {
+            roomCode: code,
+            playerName: name
+          })
+        } else {
+          setError('Impossible de se connecter au serveur')
+        }
+      }, 1000)
+      return
+    }
+
+    console.log('Rejoindre la salle:', code, name)
     socket.value.emit('join-room', {
       roomCode: code,
       playerName: name

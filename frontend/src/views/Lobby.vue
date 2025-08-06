@@ -157,11 +157,25 @@ const canJoin = computed(() => {
 })
 
 onMounted(() => {
-  // Si on a déjà un nom, l'utiliser
-  if (gameStore.playerName) {
-    playerName.value = gameStore.playerName
-    joinGame()
+  // Assurer que la connexion Socket.IO est active
+  if (!gameStore.socket || !gameStore.isConnected) {
+    console.log('Réinitialisation de la connexion Socket.IO...')
+    gameStore.initSocket()
   }
+
+  // Attendre un peu pour que la connexion s'établisse
+  setTimeout(() => {
+    // Si on a déjà un nom, l'utiliser pour rejoindre
+    if (gameStore.playerName && gameStore.roomCode) {
+      playerName.value = gameStore.playerName
+      
+      // Vérifier si on est déjà dans la salle
+      if (!gameStore.isInRoom && gameStore.isConnected) {
+        console.log('Rejoindre la salle après redémarrage...')
+        joinGame()
+      }
+    }
+  }, 1000)
 
   // Écouter les changements d'état du jeu
   if (gameStore.socket) {

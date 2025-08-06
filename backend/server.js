@@ -726,29 +726,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("restart-game", () => {
-    const playerData = players.get(socket.id);
-    if (!playerData) return;
-
-    try {
-      const room = rooms.get(playerData.roomCode);
-      if (!room) return;
-
-      const player = room.players.find(p => p.id === playerData.playerId);
-      if (!player || !player.isAdmin) {
-        socket.emit("error", { message: "Seul l'admin peut redémarrer la partie" });
-        return;
-      }
-
-      const gameState = room.restartGame();
-      io.to(playerData.roomCode).emit("game-restarted");
-      io.to(playerData.roomCode).emit("game-state", gameState);
-
-    } catch (error) {
-      socket.emit("error", { message: error.message });
-    }
-  });
-
   socket.on("get-target-cards", () => {
     const playerData = players.get(socket.id);
     if (!playerData) return;
