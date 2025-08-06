@@ -14,8 +14,8 @@ services:
   frontend:
     image: ghcr.io/amirtalbi/pouilleux-front:latest
     ports:
-      - "80:80"       # HTTP (redirige vers HTTPS)
-      - "443:443"
+      - "80:80"       # HTTP seulement pour debug
+      # - "443:443"   # HTTPS temporairement désactivé
     depends_on:
       - backend
     networks:
