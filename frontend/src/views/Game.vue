@@ -39,18 +39,25 @@
             <div
               v-for="player in otherPlayers"
               :key="player.id"
-              class="bg-gray-50 rounded-lg p-3 text-center cursor-pointer transition-all hover:bg-blue-50"
+              class="bg-gray-50 rounded-lg p-3 text-center transition-all cursor-pointer"
               :class="{
-                'ring-2 ring-blue-500 bg-blue-50': gameStore.isMyTurn && player.cardCount > 0,
+                'ring-2 ring-blue-500 bg-blue-50 hover:bg-blue-100': gameStore.nextPlayer && player.id === gameStore.nextPlayer.id && gameStore.isMyTurn,
                 'ring-2 ring-green-500 bg-green-50': player.id === gameStore.currentPlayer?.id,
-                'opacity-50': player.cardCount === 0
+                'opacity-50 cursor-not-allowed': player.cardCount === 0 || !gameStore.isMyTurn,
+                'hover:bg-gray-100': gameStore.isMyTurn && gameStore.nextPlayer && player.id === gameStore.nextPlayer.id
               }"
-              @click="gameStore.isMyTurn && player.cardCount > 0 ? drawCard(player.id) : null"
+              @click="selectTargetPlayer(player)"
             >
               <div class="flex flex-col items-center space-y-2">
                 <span class="font-medium text-sm">{{ player.name }}</span>
                 <div class="text-xs text-gray-500">{{ player.cardCount }} carte(s)</div>
                 <div class="text-xs text-gray-500">{{ player.pairCount }} paire(s)</div>
+                
+                <!-- Click indicator -->
+                <div v-if="gameStore.isMyTurn && gameStore.nextPlayer && player.id === gameStore.nextPlayer.id" 
+                     class="text-xs text-blue-600 font-medium">
+                  👆 Cliquez pour piocher
+                </div>
                 
                 <!-- Cards visualization -->
                 <div class="flex flex-wrap justify-center gap-1">
@@ -126,7 +133,44 @@
 
         <!-- Action Instruction -->
         <div v-if="gameStore.isMyTurn" class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
-          <p class="text-yellow-800 font-medium">🎯 C'est votre tour ! Cliquez sur un joueur pour piocher une carte.</p>
+          <p class="text-yellow-800 font-medium">🎯 C'est votre tour ! Cliquez sur {{ gameStore.nextPlayer?.name }} pour piocher une carte.</p>
+        </div>
+      </div>
+
+      <!-- Card Selection Modal -->
+      <div v-if="showCardSelection" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+          <div class="text-center mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Choisissez une carte</h3>
+            <p class="text-gray-600 mt-2">Piochez une carte chez {{ selectedTargetPlayer?.name }}</p>
+          </div>
+          
+          <!-- Back of cards to choose from -->
+          <div class="flex flex-wrap justify-center gap-3 mb-6">
+            <div
+              v-for="(card, index) in Array(selectedTargetPlayer?.cardCount || 0)"
+              :key="index"
+              class="cursor-pointer transform transition-all hover:scale-105 hover:-translate-y-2"
+              @click="drawCardAtIndex(index)"
+            >
+              <div class="w-16 h-24 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg shadow-lg border-2 border-white flex items-center justify-center">
+                <div class="text-white font-bold text-xs">{{ index + 1 }}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="text-center text-sm text-gray-500 mb-4">
+            Les cartes ne sont pas triées - choisissez au hasard !
+          </div>
+          
+          <div class="flex space-x-3 justify-center">
+            <button
+              @click="cancelCardSelection"
+              class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors"
+            >
+              Annuler
+            </button>
+          </div>
         </div>
       </div>
 
@@ -199,6 +243,8 @@ const router = useRouter()
 const gameStore = useGameStore()
 
 const newlyDrawnCard = ref(null)
+const showCardSelection = ref(false)
+const selectedTargetPlayer = ref(null)
 
 const otherPlayers = computed(() => {
   return gameStore.players.filter(p => p.id !== gameStore.playerId)
@@ -232,6 +278,25 @@ const formatTime = (timestamp) => {
     minute: '2-digit',
     second: '2-digit'
   })
+}
+
+const selectTargetPlayer = (player) => {
+  if (!gameStore.isMyTurn) return
+  if (!gameStore.nextPlayer || player.id !== gameStore.nextPlayer.id) return
+  if (player.cardCount === 0) return
+  
+  selectedTargetPlayer.value = player
+  showCardSelection.value = true
+}
+
+const drawCardAtIndex = (cardIndex) => {
+  gameStore.drawCard(cardIndex)
+  cancelCardSelection()
+}
+
+const cancelCardSelection = () => {
+  showCardSelection.value = false
+  selectedTargetPlayer.value = null
 }
 
 const drawCard = (targetPlayerId) => {

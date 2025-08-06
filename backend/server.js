@@ -124,19 +124,29 @@ class PouilleuGame {
   createDeck() {
     this.deck = [];
     
-    // Créer un jeu complet sauf la Dame de Pique
+    // Créer un jeu complet de 52 cartes standard
     for (let suit of SUITS) {
       for (let value of VALUES) {
-        if (!(suit === "spades" && value === "Q")) {
-          this.deck.push({ suit, value });
-        }
+        this.deck.push({ 
+          suit, 
+          value, 
+          isPouilleux: false,
+          id: `${suit}-${value}`
+        });
       }
     }
     
-    // Ajouter le Pouilleux (Dame de Pique)
-    this.deck.push({ suit: "spades", value: "Q", isPouilleux: true });
+    // Ajouter le Pouilleux (Joker) - 53e carte qui ne peut former aucune paire
+    this.deck.push({ 
+      suit: "joker", 
+      value: "JOKER", 
+      isPouilleux: true,
+      id: "joker-pouilleux"
+    });
     
-    // Mélanger le deck
+    console.log(`Deck créé avec ${this.deck.length} cartes (52 normales + 1 Pouilleux)`);
+    
+    // Mélanger le deck de façon aléatoire
     for (let i = this.deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
@@ -156,6 +166,7 @@ class PouilleuGame {
     // Chaque joueur forme ses paires initiales
     this.players.forEach(player => {
       this.formInitialPairs(player);
+      // NE PAS trier les cartes pour éviter la triche - les cartes restent dans l'ordre de distribution
     });
   }
 
@@ -163,18 +174,20 @@ class PouilleuGame {
     const pairs = [];
     const cardsByValue = {};
 
-    // Grouper les cartes par valeur
+    // Grouper les cartes par valeur (sauf le Pouilleux)
     player.cards.forEach(card => {
-      if (!cardsByValue[card.value]) {
-        cardsByValue[card.value] = [];
+      if (!card.isPouilleux) {
+        if (!cardsByValue[card.value]) {
+          cardsByValue[card.value] = [];
+        }
+        cardsByValue[card.value].push(card);
       }
-      cardsByValue[card.value].push(card);
     });
 
-    // Former les paires (sauf pour le Pouilleux)
+    // Former les paires
     Object.keys(cardsByValue).forEach(value => {
       const cards = cardsByValue[value];
-      if (cards.length >= 2 && !cards[0].isPouilleux) {
+      if (cards.length >= 2) {
         // Prendre les cartes par paires
         for (let i = 0; i < Math.floor(cards.length / 2) * 2; i += 2) {
           pairs.push([cards[i], cards[i + 1]]);
@@ -185,7 +198,11 @@ class PouilleuGame {
     // Retirer les cartes qui forment des paires
     pairs.forEach(pair => {
       pair.forEach(card => {
-        const index = player.cards.findIndex(c => c.suit === card.suit && c.value === card.value);
+        const index = player.cards.findIndex(c => 
+          c.suit === card.suit && 
+          c.value === card.value && 
+          !c.isPouilleux
+        );
         if (index !== -1) {
           player.cards.splice(index, 1);
         }
@@ -210,7 +227,7 @@ class PouilleuGame {
     return this.getGameState();
   }
 
-  drawCard(playerId, targetPlayerId) {
+  drawCard(playerId, cardIndex) {
     if (this.gameState !== "playing") {
       throw new Error("Le jeu n'est pas en cours");
     }
@@ -220,39 +237,43 @@ class PouilleuGame {
       throw new Error("Ce n'est pas votre tour");
     }
 
-    const targetPlayer = this.players.find(p => p.id === targetPlayerId);
-    if (!targetPlayer) {
-      throw new Error("Joueur cible non trouvé");
+    // Trouver le joueur suivant dans le cercle qui a des cartes
+    const targetPlayerIndex = this.getNextPlayerWithCards();
+    if (targetPlayerIndex === null) {
+      throw new Error("Aucun joueur n'a de cartes disponibles");
+    }
+    
+    const targetPlayer = this.players[targetPlayerIndex];
+
+    if (cardIndex < 0 || cardIndex >= targetPlayer.cards.length) {
+      throw new Error("Index de carte invalide");
     }
 
-    if (targetPlayer.cards.length === 0) {
-      throw new Error("Ce joueur n'a plus de cartes");
-    }
-
-    if (targetPlayer.id === playerId) {
-      throw new Error("Vous ne pouvez pas piocher dans vos propres cartes");
-    }
-
-    // Piocher une carte aléatoire
-    const randomIndex = Math.floor(Math.random() * targetPlayer.cards.length);
-    const drawnCard = targetPlayer.cards.splice(randomIndex, 1)[0];
+    // Piocher la carte choisie
+    const drawnCard = targetPlayer.cards.splice(cardIndex, 1)[0];
     currentPlayer.cards.push(drawnCard);
 
     this.lastAction = {
       type: "draw",
       player: currentPlayer.name,
       target: targetPlayer.name,
+      cardIndex: cardIndex,
       cardDrawn: drawnCard
     };
 
-    // Vérifier si le joueur peut former une paire avec la carte piochée
+    // Vérifier si le joueur peut former une paire avec la carte piochée 
+    // (impossible avec le Pouilleux/Joker)
     const pairs = this.checkForPairs(currentPlayer, drawnCard);
     if (pairs.length > 0) {
       pairs.forEach(pair => {
         currentPlayer.pairs.push(pair);
         // Retirer les cartes qui forment la paire
         pair.forEach(card => {
-          const index = currentPlayer.cards.findIndex(c => c.suit === card.suit && c.value === card.value);
+          const index = currentPlayer.cards.findIndex(c => 
+            c.suit === card.suit && 
+            c.value === card.value && 
+            !c.isPouilleux
+          );
           if (index !== -1) {
             currentPlayer.cards.splice(index, 1);
           }
@@ -290,20 +311,23 @@ class PouilleuGame {
   checkForPairs(player, newCard) {
     const pairs = [];
     
-    // Ne pas former de paire avec le Pouilleux
+    // RÈGLE FONDAMENTALE : Le Pouilleux (Joker) ne peut JAMAIS former de paire
     if (newCard.isPouilleux) {
+      console.log(`${player.name} a pioché le Pouilleux - aucune paire possible !`);
       return pairs;
     }
 
-    // Chercher une carte de même valeur
-    const matchingCard = player.cards.find(card => 
+    // Chercher une carte de même valeur pour former une paire
+    const matchingCardIndex = player.cards.findIndex(card => 
       card.value === newCard.value && 
       !card.isPouilleux &&
-      (card.suit !== newCard.suit || card.value !== newCard.value) // Pas la même carte
+      card.id !== newCard.id // Pas la même carte exacte
     );
 
-    if (matchingCard) {
+    if (matchingCardIndex !== -1) {
+      const matchingCard = player.cards[matchingCardIndex];
       pairs.push([newCard, matchingCard]);
+      console.log(`Paire formée: ${newCard.value} de ${newCard.suit} avec ${matchingCard.value} de ${matchingCard.suit}`);
     }
 
     return pairs;
@@ -342,11 +366,32 @@ class PouilleuGame {
         hasLost: p.hasLost,
       })),
       currentPlayerIndex: this.currentPlayerIndex,
+      nextPlayerIndex: this.gameState === "playing" ? 
+        this.getNextPlayerWithCards() : null,
       lastAction: this.lastAction,
       winner: this.winner,
       gameLog: this.gameLog.slice(-10), // Derniers 10 messages
       canStart: this.canStartGame(),
     };
+  }
+
+  getNextPlayerWithCards() {
+    if (this.gameState !== "playing") return null;
+    
+    // Dans le vrai Pouilleux, on pioche TOUJOURS chez le joueur suivant dans le cercle
+    // même s'il n'a qu'une carte ou le Pouilleux
+    const nextIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    
+    // Trouver le prochain joueur qui a des cartes en suivant l'ordre du cercle
+    let targetIndex = nextIndex;
+    let attempts = 0;
+    
+    while (this.players[targetIndex].cards.length === 0 && attempts < this.players.length) {
+      targetIndex = (targetIndex + 1) % this.players.length;
+      attempts++;
+    }
+    
+    return this.players[targetIndex].cards.length > 0 ? targetIndex : null;
   }
 
   getPlayerCards(playerId) {
@@ -484,7 +529,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("draw-card", ({ targetPlayerId }) => {
+  socket.on("draw-card", ({ cardIndex }) => {
     const playerData = players.get(socket.id);
     if (!playerData) return;
 
@@ -492,7 +537,7 @@ io.on("connection", (socket) => {
       const room = rooms.get(playerData.roomCode);
       if (!room) return;
 
-      const gameState = room.drawCard(playerData.playerId, targetPlayerId);
+      const gameState = room.drawCard(playerData.playerId, cardIndex);
       
       io.to(playerData.roomCode).emit("game-state", gameState);
       
@@ -508,6 +553,40 @@ io.on("connection", (socket) => {
       if (room.lastAction) {
         io.to(playerData.roomCode).emit("card-drawn", room.lastAction);
       }
+
+    } catch (error) {
+      socket.emit("error", { message: error.message });
+    }
+  });
+
+  socket.on("get-target-cards", () => {
+    const playerData = players.get(socket.id);
+    if (!playerData) return;
+
+    try {
+      const room = rooms.get(playerData.roomCode);
+      if (!room) return;
+
+      const currentPlayer = room.players[room.currentPlayerIndex];
+      if (currentPlayer.id !== playerData.playerId) {
+        socket.emit("error", { message: "Ce n'est pas votre tour" });
+        return;
+      }
+
+      const targetPlayerIndex = room.getNextPlayerWithCards();
+      if (targetPlayerIndex === null) {
+        socket.emit("error", { message: "Aucun joueur cible disponible" });
+        return;
+      }
+
+      const targetPlayer = room.players[targetPlayerIndex];
+      
+      // Envoyer le nombre de cartes du joueur cible (pour l'interface de sélection)
+      socket.emit("target-cards", {
+        targetPlayerId: targetPlayer.id,
+        targetPlayerName: targetPlayer.name,
+        cardCount: targetPlayer.cards.length
+      });
 
     } catch (error) {
       socket.emit("error", { message: error.message });

@@ -62,9 +62,10 @@
           <h2 class="text-lg font-semibold text-yellow-800 mb-3">🎯 Règles du jeu</h2>
           <div class="text-sm text-yellow-700 space-y-2">
             <p>• Formez des paires avec des cartes de même valeur</p>
-            <p>• Piochez des cartes chez les autres joueurs à tour de rôle</p>
+            <p>• Piochez des cartes chez le joueur suivant (dans le sens du cercle)</p>
+            <p>• Choisissez la carte que vous voulez piocher</p>
             <p>• Le but : se débarrasser de toutes ses cartes</p>
-            <p>• Évitez d'être le dernier avec le Pouilleux (Dame de Pique)!</p>
+            <p>• Évitez d'être le dernier avec le Joker (Pouilleux)!</p>
             <p>• 2 à 6 joueurs</p>
           </div>
         </div>

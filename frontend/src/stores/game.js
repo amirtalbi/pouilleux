@@ -12,16 +12,22 @@ export const useGameStore = defineStore('pouilleux', () => {
   const gameState = ref('lobby') // lobby, playing, finished
   const players = ref([])
   const currentPlayerIndex = ref(0)
+  const nextPlayerIndex = ref(null)
   const winner = ref(null)
   const myCards = ref([])
   const myPairs = ref([])
   const lastAction = ref(null)
   const gameLog = ref([])
   const error = ref('')
+  const targetCards = ref(null) // Pour les cartes du joueur cible
 
   // Computed
   const currentPlayer = computed(() => {
     return players.value[currentPlayerIndex.value] || null
+  })
+
+  const nextPlayer = computed(() => {
+    return nextPlayerIndex.value !== null ? players.value[nextPlayerIndex.value] : null
   })
 
   const myPlayer = computed(() => {
@@ -101,6 +107,11 @@ export const useGameStore = defineStore('pouilleux', () => {
       gameState.value = 'playing'
     })
 
+    socket.value.on('target-cards', (data) => {
+      console.log('Cartes du joueur cible:', data)
+      targetCards.value = data
+    })
+
     socket.value.on('player-left', (data) => {
       console.log('Joueur parti:', data.playerName)
     })
@@ -110,6 +121,7 @@ export const useGameStore = defineStore('pouilleux', () => {
     gameState.value = state.gameState
     players.value = state.players || []
     currentPlayerIndex.value = state.currentPlayerIndex || 0
+    nextPlayerIndex.value = state.nextPlayerIndex
     winner.value = state.winner
     gameLog.value = state.gameLog || []
     if (state.lastAction) {
@@ -166,7 +178,7 @@ export const useGameStore = defineStore('pouilleux', () => {
     socket.value.emit('start-game')
   }
 
-  const drawCard = (targetPlayerId) => {
+  const drawCard = (cardIndex) => {
     if (!socket.value || !socket.value.connected) {
       setError('Connexion non établie')
       return
@@ -177,7 +189,16 @@ export const useGameStore = defineStore('pouilleux', () => {
       return
     }
 
-    socket.value.emit('draw-card', { targetPlayerId })
+    socket.value.emit('draw-card', { cardIndex })
+  }
+
+  const getTargetCards = () => {
+    if (!socket.value || !socket.value.connected) {
+      setError('Connexion non établie')
+      return
+    }
+
+    socket.value.emit('get-target-cards')
   }
 
   const disconnect = () => {
@@ -194,12 +215,14 @@ export const useGameStore = defineStore('pouilleux', () => {
     gameState.value = 'lobby'
     players.value = []
     currentPlayerIndex.value = 0
+    nextPlayerIndex.value = null
     winner.value = null
     myCards.value = []
     myPairs.value = []
     lastAction.value = null
     gameLog.value = []
     error.value = ''
+    targetCards.value = null
   }
 
   return {
@@ -218,9 +241,11 @@ export const useGameStore = defineStore('pouilleux', () => {
     lastAction,
     gameLog,
     error,
+    targetCards,
     
     // Computed
     currentPlayer,
+    nextPlayer,
     myPlayer,
     isMyTurn,
     isInRoom,
@@ -236,6 +261,7 @@ export const useGameStore = defineStore('pouilleux', () => {
     toggleReady,
     startGame,
     drawCard,
+    getTargetCards,
     disconnect
   }
 })
