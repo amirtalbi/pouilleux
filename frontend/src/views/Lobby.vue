@@ -120,15 +120,15 @@
         </div>
 
         <!-- Game Rules Reminder -->
+                <!-- Game Rules Reminder -->
         <div class="mt-6 bg-blue-50 rounded-lg p-4">
           <h3 class="font-semibold text-blue-800 mb-2">🎯 Rappel des règles :</h3>
           <ul class="text-sm text-blue-700 space-y-1">
             <li>• Formez des paires avec les cartes de même valeur</li>
-            <li>• À votre tour, piochez une carte chez le joueur suivant (dans le cercle)</li>
-            <li>• Choisissez la carte que vous voulez piocher (dos de carte)</li>
+            <li>• À votre tour, piochez une carte chez le joueur suivant</li>
+            <li>• Choisissez quelle carte vous voulez piocher</li>
             <li>• Éliminez toutes vos cartes pour gagner</li>
             <li>• Le dernier avec le Joker (Pouilleux) perd !</li>
-            <li>• 53 cartes : 52 normales + 1 Joker (qui ne peut former aucune paire)</li>
           </ul>
         </div>
       </div>

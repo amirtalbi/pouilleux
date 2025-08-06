@@ -236,14 +236,23 @@
                   v-for="(player, index) in finalRanking"
                   :key="player.id"
                   class="flex items-center justify-between p-2 rounded"
-                  :class="player.hasLost ? 'bg-red-100' : 'bg-green-100'"
+                  :class="{
+                    'bg-red-100': player.hasLost,
+                    'bg-green-100': player.hasWon,
+                    'bg-gray-100': !player.hasLost && !player.hasWon
+                  }"
                 >
                   <div class="flex items-center space-x-2">
                     <span class="font-bold">{{ index + 1 }}.</span>
                     <span>{{ player.name }}</span>
-                    <span v-if="player.hasLost" class="text-red-600 text-sm">(Pouilleux)</span>
+                    <span v-if="player.hasLost" class="text-red-600 text-sm font-medium">(💀 Pouilleux)</span>
+                    <span v-else-if="player.hasWon" class="text-green-600 text-sm font-medium">(🏆 Gagnant)</span>
+                    <span v-else-if="player.cardCount === 0" class="text-blue-600 text-sm">(✅ Terminé)</span>
                   </div>
-                  <span class="text-sm text-gray-600">{{ player.pairCount }} paires</span>
+                  <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-600">{{ player.pairCount }} paires</span>
+                    <span v-if="player.cardCount > 0" class="text-xs text-gray-500">({{ player.cardCount }} cartes)</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -311,8 +320,15 @@ const loser = computed(() => {
 
 const finalRanking = computed(() => {
   return [...gameStore.players].sort((a, b) => {
+    // Le perdant (avec le Pouilleux) en dernier
     if (a.hasLost && !b.hasLost) return 1
     if (!a.hasLost && b.hasLost) return -1
+    
+    // Les gagnants (sans cartes) en premier, par nombre de paires
+    if (a.hasWon && !b.hasWon) return -1
+    if (!a.hasWon && b.hasWon) return 1
+    
+    // Sinon, trier par nombre de paires (plus de paires = meilleur)
     return b.pairCount - a.pairCount
   })
 })

@@ -107,6 +107,15 @@ export const useGameStore = defineStore('pouilleux', () => {
       gameState.value = 'playing'
     })
 
+    socket.value.on('game-restarted', () => {
+      console.log('Partie redémarrée!')
+      // Réinitialiser les cartes locales
+      myCards.value = []
+      myPairs.value = []
+      lastAction.value = null
+      gameState.value = 'lobby'
+    })
+
     socket.value.on('target-cards', (data) => {
       console.log('Cartes du joueur cible:', data)
       targetCards.value = data

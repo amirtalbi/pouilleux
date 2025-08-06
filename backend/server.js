@@ -75,6 +75,7 @@ class PouilleuGame {
       pairs: [], // Paires formées
       isAdmin: this.players.length === 0,
       hasLost: false,
+      hasWon: false,
       turnFinished: false,
     };
 
@@ -136,6 +137,7 @@ class PouilleuGame {
       player.pairs = [];
       player.isReady = false;
       player.hasLost = false;
+      player.hasWon = false;
       player.turnFinished = false;
     });
     
@@ -307,24 +309,38 @@ class PouilleuGame {
 
     this.addToLog(`${currentPlayer.name} a pioché une carte chez ${targetPlayer.name}${pairs.length > 0 ? ' et a formé une paire !' : ''}`);
 
-    // Vérifier si le joueur a gagné (plus de cartes)
+    // Vérifier la condition de fin de partie
     if (currentPlayer.cards.length === 0) {
-      currentPlayer.hasLost = false;
-      this.addToLog(`${currentPlayer.name} a posé toutes ses cartes !`);
+      currentPlayer.hasWon = true; // Marquer comme ayant terminé ses cartes
+      this.addToLog(`${currentPlayer.name} s'est débarrassé de toutes ses cartes !`);
       
-      // Vérifier si il ne reste qu'un joueur avec des cartes
+      // Compter les joueurs qui ont encore des cartes
       const playersWithCards = this.players.filter(p => p.cards.length > 0);
+      
       if (playersWithCards.length === 1) {
-        // Le dernier joueur avec des cartes perd (et a probablement le Pouilleux)
-        playersWithCards[0].hasLost = true;
-        this.winner = currentPlayer;
+        // Il ne reste qu'un seul joueur avec des cartes - c'est le perdant avec le Pouilleux !
+        const loser = playersWithCards[0];
+        loser.hasLost = true;
         this.gameState = "finished";
-        this.addToLog(`${playersWithCards[0].name} a perdu ! Il avait le Pouilleux !`);
+        this.addToLog(`${loser.name} a perdu ! Il était le dernier avec le Pouilleux !`);
+        
+        // Le vainqueur est le premier joueur à avoir terminé ses cartes
+        const firstWinner = this.players.find(p => p.hasWon);
+        this.winner = firstWinner;
+        
         return this.getGameState();
+      } else if (playersWithCards.length === 0) {
+        // Cas impossible, mais sécurité
+        this.gameState = "finished";
+        this.addToLog("Partie terminée de manière inattendue !");
+        return this.getGameState();
+      } else {
+        // Il reste plusieurs joueurs, la partie continue
+        this.addToLog(`${currentPlayer.name} a terminé ! Il reste ${playersWithCards.length} joueurs.`);
       }
     }
 
-    // Passer au joueur suivant
+    // Passer au joueur suivant qui a encore des cartes
     this.nextPlayer();
     
     return this.getGameState();
@@ -356,10 +372,31 @@ class PouilleuGame {
   }
 
   nextPlayer() {
+    let attempts = 0;
+    const maxAttempts = this.players.length;
+    
     do {
       this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
-    } while (this.players[this.currentPlayerIndex].cards.length === 0 && 
-             this.players.filter(p => p.cards.length > 0).length > 1);
+      attempts++;
+      
+      // Sécurité : éviter une boucle infinie
+      if (attempts >= maxAttempts) {
+        console.error("Erreur: impossible de trouver un joueur suivant avec des cartes");
+        break;
+      }
+    } while (
+      this.players[this.currentPlayerIndex].cards.length === 0 && 
+      this.players.filter(p => p.cards.length > 0).length > 0
+    );
+    
+    // Vérifier si le joueur actuel a des cartes
+    if (this.players[this.currentPlayerIndex].cards.length === 0) {
+      // Si aucun joueur actuel n'a de cartes, chercher le premier qui en a
+      const playersWithCards = this.players.filter(p => p.cards.length > 0);
+      if (playersWithCards.length > 0) {
+        this.currentPlayerIndex = this.players.findIndex(p => p.id === playersWithCards[0].id);
+      }
+    }
   }
 
   addToLog(message) {
@@ -385,7 +422,8 @@ class PouilleuGame {
         pairCount: p.pairs.length,
         isReady: p.isReady,
         isAdmin: p.isAdmin,
-        hasLost: p.hasLost,
+        hasLost: p.hasLost || false,
+        hasWon: p.hasWon || false,
       })),
       currentPlayerIndex: this.currentPlayerIndex,
       nextPlayerIndex: this.gameState === "playing" ? 
@@ -422,6 +460,30 @@ class PouilleuGame {
       cards: player.cards,
       pairs: player.pairs
     } : null;
+  }
+
+  restartGame() {
+    // Réinitialiser l'état de tous les joueurs
+    this.players.forEach(player => {
+      player.cards = [];
+      player.pairs = [];
+      player.isReady = false;
+      player.hasWon = false;
+      player.hasLost = false;
+      player.turnFinished = false;
+    });
+
+    // Réinitialiser l'état du jeu
+    this.gameState = "lobby";
+    this.gameStarted = false;
+    this.deck = [];
+    this.currentPlayerIndex = 0;
+    this.winner = null;
+    this.lastAction = null;
+    this.gameLog = [];
+
+    this.addToLog("Nouvelle partie ! Tous les joueurs doivent se préparer à nouveau.");
+    return this.getGameState();
   }
 }
 
@@ -575,6 +637,29 @@ io.on("connection", (socket) => {
       if (room.lastAction) {
         io.to(playerData.roomCode).emit("card-drawn", room.lastAction);
       }
+
+    } catch (error) {
+      socket.emit("error", { message: error.message });
+    }
+  });
+
+  socket.on("restart-game", () => {
+    const playerData = players.get(socket.id);
+    if (!playerData) return;
+
+    try {
+      const room = rooms.get(playerData.roomCode);
+      if (!room) return;
+
+      const player = room.players.find(p => p.id === playerData.playerId);
+      if (!player || !player.isAdmin) {
+        socket.emit("error", { message: "Seul l'admin peut redémarrer la partie" });
+        return;
+      }
+
+      const gameState = room.restartGame();
+      io.to(playerData.roomCode).emit("game-restarted");
+      io.to(playerData.roomCode).emit("game-state", gameState);
 
     } catch (error) {
       socket.emit("error", { message: error.message });
