@@ -550,7 +550,7 @@ setInterval(() => {
   }
 }, 60000); // Toutes les minutes
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Serveur Pouilleux en écoute sur le port ${PORT}`);
 });

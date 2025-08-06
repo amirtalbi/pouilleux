@@ -34,7 +34,7 @@ RUN mkdir -p /etc/nginx/ssl
 RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/nginx/ssl/nginx.key \
     -out /etc/nginx/ssl/nginx.crt \
-    -subj "/C=FR/ST=France/L=Paris/O=President Game/CN=164.90.223.131"
+    -subj "/C=FR/ST=France/L=Paris/O=President Game/CN=167.99.140.5"
 
 # Exposer les ports
 EXPOSE 80 443

@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   backend:
-    image: ghcr.io/amirtalbi/pouilleux-backend:latest
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
     environment:
       - NODE_ENV=production
       - PORT=3001
@@ -12,7 +14,9 @@ services:
     # Ne pas exposer le port directement
 
   frontend:
-    image: ghcr.io/amirtalbi/pouilleux-front:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "80:80"       # HTTP (redirige vers HTTPS)
       - "443:443"
