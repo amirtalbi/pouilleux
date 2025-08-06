@@ -103,14 +103,55 @@
 
             <!-- My current cards -->
             <div>
-              <h3 class="text-sm font-medium text-gray-700 mb-2">Cartes en main:</h3>
-              <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
-                <PlayingCard
-                  v-for="card in gameStore.myCards"
-                  :key="`${card.suit}-${card.value}`"
-                  :card="card"
-                  :isNew="isNewCard(card)"
-                />
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-medium text-gray-700">Cartes en main:</h3>
+                <div class="flex items-center space-x-2">
+                  <button
+                    @click="toggleSortMode"
+                    class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded transition-colors"
+                  >
+                    {{ isSortMode ? '✅ Fini' : '🔄 Réorganiser' }}
+                  </button>
+                  <button
+                    @click="shuffleCards"
+                    class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
+                  >
+                    🎲 Mélanger
+                  </button>
+                </div>
+              </div>
+              
+              <div 
+                class="flex flex-wrap gap-2 justify-center sm:justify-start min-h-[100px] p-2 rounded-lg transition-all"
+                :class="isSortMode ? 'bg-blue-50 border-2 border-dashed border-blue-300' : 'bg-transparent'"
+              >
+                <div
+                  v-for="(card, index) in sortedCards"
+                  :key="`${card.suit}-${card.value}-${index}`"
+                  class="card-container transition-all duration-300"
+                  :class="{
+                    'cursor-move': isSortMode,
+                    'transform hover:scale-105': !isSortMode,
+                    'ring-2 ring-yellow-400': selectedCardIndex === index && isSortMode,
+                    'opacity-70': draggedIndex === index
+                  }"
+                  @click="handleCardClick(index)"
+                  @dragstart="handleDragStart(index, $event)"
+                  @dragover="handleDragOver($event)"
+                  @drop="handleDrop(index, $event)"
+                  @dragend="handleDragEnd"
+                  :draggable="isSortMode"
+                >
+                  <PlayingCard
+                    :card="card"
+                    :isNew="isNewCard(card)"
+                    class="pointer-events-none"
+                  />
+                </div>
+              </div>
+              
+              <div v-if="isSortMode" class="mt-2 text-xs text-blue-600 text-center">
+                💡 Glissez-déposez les cartes ou cliquez sur deux cartes pour les échanger
               </div>
             </div>
           </div>
@@ -209,16 +250,23 @@
 
             <div class="flex space-x-4 justify-center">
               <button
+                v-if="gameStore.myPlayer?.isAdmin"
+                @click="restartGame"
+                class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-md transition-colors"
+              >
+                🔄 Rejouer
+              </button>
+              <button
                 @click="$router.push('/lobby')"
                 class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition-colors"
               >
-                🔄 Nouvelle partie
+                🏠 Retour au lobby
               </button>
               <button
                 @click="$router.push('/')"
                 class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-6 rounded-md transition-colors"
               >
-                🏠 Accueil
+                🚪 Accueil
               </button>
             </div>
           </div>
@@ -245,6 +293,9 @@ const gameStore = useGameStore()
 const newlyDrawnCard = ref(null)
 const showCardSelection = ref(false)
 const selectedTargetPlayer = ref(null)
+const isSortMode = ref(false)
+const selectedCardIndex = ref(null)
+const draggedIndex = ref(null)
 
 const otherPlayers = computed(() => {
   return gameStore.players.filter(p => p.id !== gameStore.playerId)
@@ -264,6 +315,10 @@ const finalRanking = computed(() => {
     if (!a.hasLost && b.hasLost) return -1
     return b.pairCount - a.pairCount
   })
+})
+
+const sortedCards = computed(() => {
+  return [...gameStore.myCards]
 })
 
 const isNewCard = (card) => {
@@ -310,6 +365,73 @@ const leaveGame = () => {
   router.push('/')
 }
 
+const restartGame = () => {
+  gameStore.restartGame()
+}
+
+const toggleSortMode = () => {
+  isSortMode.value = !isSortMode.value
+  selectedCardIndex.value = null
+}
+
+const shuffleCards = () => {
+  const cards = [...gameStore.myCards]
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]]
+  }
+  gameStore.reorderCards(cards)
+}
+
+const handleCardClick = (index) => {
+  if (!isSortMode.value) return
+  
+  if (selectedCardIndex.value === null) {
+    selectedCardIndex.value = index
+  } else if (selectedCardIndex.value === index) {
+    selectedCardIndex.value = null
+  } else {
+    // Échanger les deux cartes
+    swapCards(selectedCardIndex.value, index)
+    selectedCardIndex.value = null
+  }
+}
+
+const swapCards = (index1, index2) => {
+  const cards = [...gameStore.myCards]
+  const temp = cards[index1]
+  cards[index1] = cards[index2]
+  cards[index2] = temp
+  gameStore.reorderCards(cards)
+}
+
+const handleDragStart = (index, event) => {
+  if (!isSortMode.value) return
+  draggedIndex.value = index
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/html', index.toString())
+}
+
+const handleDragOver = (event) => {
+  if (!isSortMode.value) return
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+}
+
+const handleDrop = (targetIndex, event) => {
+  if (!isSortMode.value) return
+  event.preventDefault()
+  
+  const sourceIndex = parseInt(event.dataTransfer.getData('text/html'))
+  if (sourceIndex !== targetIndex) {
+    swapCards(sourceIndex, targetIndex)
+  }
+}
+
+const handleDragEnd = () => {
+  draggedIndex.value = null
+}
+
 // Watch for newly drawn cards
 watch(() => gameStore.lastAction, (action) => {
   if (action && action.type === 'draw' && action.cardDrawn) {
@@ -327,3 +449,36 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.card-container {
+  position: relative;
+}
+
+.card-container.cursor-move {
+  cursor: move;
+}
+
+.card-container:hover {
+  z-index: 10;
+}
+
+/* Animation pour les cartes en mode tri */
+.card-container {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* Effet de survol en mode tri */
+.cursor-move:hover {
+  transform: translateY(-4px);
+}
+
+/* Style pour la zone de drop */
+.bg-blue-50.border-dashed {
+  transition: background-color 0.3s ease;
+}
+
+.bg-blue-50.border-dashed:hover {
+  background-color: rgb(219 234 254);
+}
+</style>

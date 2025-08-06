@@ -115,6 +115,14 @@ export const useGameStore = defineStore('pouilleux', () => {
     socket.value.on('player-left', (data) => {
       console.log('Joueur parti:', data.playerName)
     })
+
+    socket.value.on('game-reset', () => {
+      console.log('Partie relancée!')
+      // Réinitialiser les cartes locales
+      myCards.value = []
+      myPairs.value = []
+      lastAction.value = null
+    })
   }
 
   const updateGameState = (state) => {
@@ -201,6 +209,20 @@ export const useGameStore = defineStore('pouilleux', () => {
     socket.value.emit('get-target-cards')
   }
 
+  const restartGame = () => {
+    if (!socket.value || !socket.value.connected) {
+      setError('Connexion non établie')
+      return
+    }
+
+    socket.value.emit('restart-game')
+  }
+
+  const reorderCards = (newOrder) => {
+    // Réorganiser les cartes localement
+    myCards.value = newOrder
+  }
+
   const disconnect = () => {
     if (socket.value) {
       socket.value.disconnect()
@@ -262,6 +284,8 @@ export const useGameStore = defineStore('pouilleux', () => {
     startGame,
     drawCard,
     getTargetCards,
+    restartGame,
+    reorderCards,
     disconnect
   }
 })

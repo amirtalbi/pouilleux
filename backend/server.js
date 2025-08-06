@@ -121,6 +121,28 @@ class PouilleuGame {
            this.gameState === "lobby";
   }
 
+  resetGame() {
+    // Réinitialiser l'état du jeu pour une nouvelle partie
+    this.gameState = "lobby";
+    this.deck = [];
+    this.currentPlayerIndex = 0;
+    this.gameStarted = false;
+    this.winner = null;
+    this.lastAction = null;
+    
+    // Réinitialiser chaque joueur
+    this.players.forEach(player => {
+      player.cards = [];
+      player.pairs = [];
+      player.isReady = false;
+      player.hasLost = false;
+      player.turnFinished = false;
+    });
+    
+    this.addToLog("🔄 Nouvelle partie ! Tous les joueurs doivent se déclarer prêts.");
+    return this.getGameState();
+  }
+
   createDeck() {
     this.deck = [];
     
@@ -587,6 +609,34 @@ io.on("connection", (socket) => {
         targetPlayerName: targetPlayer.name,
         cardCount: targetPlayer.cards.length
       });
+
+    } catch (error) {
+      socket.emit("error", { message: error.message });
+    }
+  });
+
+  socket.on("restart-game", () => {
+    const playerData = players.get(socket.id);
+    if (!playerData) return;
+
+    try {
+      const room = rooms.get(playerData.roomCode);
+      if (!room) return;
+
+      const player = room.players.find(p => p.id === playerData.playerId);
+      if (!player || !player.isAdmin) {
+        socket.emit("error", { message: "Seul l'admin peut relancer une partie" });
+        return;
+      }
+
+      if (room.gameState !== "finished") {
+        socket.emit("error", { message: "La partie n'est pas terminée" });
+        return;
+      }
+
+      const gameState = room.resetGame();
+      io.to(playerData.roomCode).emit("game-reset");
+      io.to(playerData.roomCode).emit("game-state", gameState);
 
     } catch (error) {
       socket.emit("error", { message: error.message });
