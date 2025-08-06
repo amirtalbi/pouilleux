@@ -309,41 +309,124 @@ class PouilleuGame {
 
     this.addToLog(`${currentPlayer.name} a pioché une carte chez ${targetPlayer.name}${pairs.length > 0 ? ' et a formé une paire !' : ''}`);
 
-    // Vérifier la condition de fin de partie
+    // Marquer le joueur comme gagnant s'il n'a plus de cartes
     if (currentPlayer.cards.length === 0) {
-      currentPlayer.hasWon = true; // Marquer comme ayant terminé ses cartes
+      currentPlayer.hasWon = true;
       this.addToLog(`${currentPlayer.name} s'est débarrassé de toutes ses cartes !`);
-      
-      // Compter les joueurs qui ont encore des cartes
-      const playersWithCards = this.players.filter(p => p.cards.length > 0);
-      
-      if (playersWithCards.length === 1) {
-        // Il ne reste qu'un seul joueur avec des cartes - c'est le perdant avec le Pouilleux !
-        const loser = playersWithCards[0];
-        loser.hasLost = true;
-        this.gameState = "finished";
-        this.addToLog(`${loser.name} a perdu ! Il était le dernier avec le Pouilleux !`);
-        
-        // Le vainqueur est le premier joueur à avoir terminé ses cartes
-        const firstWinner = this.players.find(p => p.hasWon);
-        this.winner = firstWinner;
-        
-        return this.getGameState();
-      } else if (playersWithCards.length === 0) {
-        // Cas impossible, mais sécurité
-        this.gameState = "finished";
-        this.addToLog("Partie terminée de manière inattendue !");
-        return this.getGameState();
-      } else {
-        // Il reste plusieurs joueurs, la partie continue
-        this.addToLog(`${currentPlayer.name} a terminé ! Il reste ${playersWithCards.length} joueurs.`);
+    }
+
+    // Vérifier la condition de fin de partie APRÈS chaque action
+    const gameEndResult = this.checkGameEndCondition();
+    if (gameEndResult.shouldEnd) {
+      this.gameState = "finished";
+      this.addToLog(gameEndResult.message);
+      if (gameEndResult.loser) {
+        gameEndResult.loser.hasLost = true;
       }
+      if (gameEndResult.winner) {
+        this.winner = gameEndResult.winner;
+      }
+      return this.getGameState();
     }
 
     // Passer au joueur suivant qui a encore des cartes
     this.nextPlayer();
     
     return this.getGameState();
+  }
+
+  checkGameEndCondition() {
+    // Compter les joueurs avec des cartes
+    const playersWithCards = this.players.filter(p => p.cards.length > 0);
+    
+    if (playersWithCards.length === 0) {
+      // Cas impossible normalement
+      return {
+        shouldEnd: true,
+        message: "Partie terminée : aucun joueur n'a de cartes !",
+        loser: null,
+        winner: this.players.find(p => p.hasWon) || this.players[0]
+      };
+    }
+    
+    if (playersWithCards.length === 1) {
+      // Il ne reste qu'un joueur avec des cartes - c'est le perdant !
+      const loser = playersWithCards[0];
+      const winner = this.players.find(p => p.hasWon) || this.players.find(p => p.id !== loser.id);
+      
+      return {
+        shouldEnd: true,
+        message: `${loser.name} a perdu ! Il était le dernier avec des cartes (incluant le Pouilleux) !`,
+        loser: loser,
+        winner: winner
+      };
+    }
+
+    // Vérifier si il ne reste que le Pouilleux en circulation
+    const totalCards = playersWithCards.reduce((sum, player) => sum + player.cards.length, 0);
+    const pouilleuCards = [];
+    
+    playersWithCards.forEach(player => {
+      player.cards.forEach(card => {
+        if (card.isPouilleux) {
+          pouilleuCards.push({ player, card });
+        }
+      });
+    });
+
+    // Si il n'y a qu'une seule carte en jeu ET c'est le Pouilleux
+    if (totalCards === 1 && pouilleuCards.length === 1) {
+      const loser = pouilleuCards[0].player;
+      const winner = this.players.find(p => p.hasWon) || this.players.find(p => p.id !== loser.id);
+      
+      return {
+        shouldEnd: true,
+        message: `${loser.name} a perdu ! Il lui reste seulement le Pouilleux !`,
+        loser: loser,
+        winner: winner
+      };
+    }
+
+    // Vérifier si seules des cartes qui ne peuvent plus former de paires restent
+    // (c'est-à-dire uniquement le Pouilleux et des cartes isolées)
+    let canFormPairs = false;
+    const cardValues = {};
+    
+    playersWithCards.forEach(player => {
+      player.cards.forEach(card => {
+        if (!card.isPouilleux) {
+          cardValues[card.value] = (cardValues[card.value] || 0) + 1;
+        }
+      });
+    });
+    
+    // Vérifier si des paires peuvent encore être formées
+    for (const value in cardValues) {
+      if (cardValues[value] >= 2) {
+        canFormPairs = true;
+        break;
+      }
+    }
+    
+    // Si aucune paire ne peut être formée et qu'il ne reste que le Pouilleux + cartes isolées
+    if (!canFormPairs && pouilleuCards.length === 1) {
+      const loser = pouilleuCards[0].player;
+      const winner = this.players.find(p => p.hasWon) || this.players.find(p => p.id !== loser.id);
+      
+      return {
+        shouldEnd: true,
+        message: `${loser.name} a perdu ! Il ne reste que le Pouilleux et des cartes isolées !`,
+        loser: loser,
+        winner: winner
+      };
+    }
+
+    return {
+      shouldEnd: false,
+      message: null,
+      loser: null,
+      winner: null
+    };
   }
 
   checkForPairs(player, newCard) {
