@@ -124,9 +124,11 @@
           <h3 class="font-semibold text-blue-800 mb-2">🎯 Rappel des règles :</h3>
           <ul class="text-sm text-blue-700 space-y-1">
             <li>• Formez des paires avec les cartes de même valeur</li>
-            <li>• À votre tour, piochez une carte chez un autre joueur</li>
+            <li>• À votre tour, piochez une carte chez le joueur suivant (dans le cercle)</li>
+            <li>• Choisissez la carte que vous voulez piocher (dos de carte)</li>
             <li>• Éliminez toutes vos cartes pour gagner</li>
-            <li>• Le dernier avec le Pouilleux (Dame de Pique) perd !</li>
+            <li>• Le dernier avec le Joker (Pouilleux) perd !</li>
+            <li>• 53 cartes : 52 normales + 1 Joker (qui ne peut former aucune paire)</li>
           </ul>
         </div>
       </div>

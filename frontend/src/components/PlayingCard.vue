@@ -78,18 +78,26 @@ const suitSymbols = {
   hearts: '♥',
   diamonds: '♦', 
   clubs: '♣',
-  spades: '♠'
+  spades: '♠',
+  joker: '🃏'  // Symbole spécial pour le Joker
 }
 
 const suitSymbol = computed(() => suitSymbols[props.card.suit] || '?')
 
 const cardColor = computed(() => {
+  // Le Joker a une couleur spéciale
+  if (props.card.suit === 'joker') {
+    return 'text-purple-600'
+  }
   return props.card.suit === 'hearts' || props.card.suit === 'diamonds' 
     ? 'text-red-500' 
     : 'text-black'
 })
 
 const displayValue = computed(() => {
+  if (props.card.suit === 'joker') {
+    return 'JOKER'
+  }
   switch (props.card.value) {
     case 'A': return 'A'
     case 'J': return 'V'
@@ -100,7 +108,8 @@ const displayValue = computed(() => {
 })
 
 const isPouilleux = computed(() => {
-  return props.card.isPouilleux || (props.card.suit === 'spades' && props.card.value === 'Q')
+  // Seul le Joker est le Pouilleux (défini par isPouilleux: true)
+  return props.card.isPouilleux === true
 })
 
 // Animation lors du changement de carte
